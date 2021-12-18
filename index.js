@@ -1,13 +1,18 @@
 const express = require('express');
 const path = require("path");
 const axios = require('axios');
+const fileupload = require('express-fileupload');
+const FormData = require('form-data');
 
 const app = express();
 
-app.get('/getTheirDssp', async (req, res) => {
-  console.log('GET', req.query);
-  res.set('Content-Type', 'text/html');
-  const theirDssp = await getTheirDssp(req.query.pdbId);
+const port = process.env.PORT || 80;
+
+app.use(fileupload());
+
+app.post('/getTheirDssp', async (req, res) => {
+  console.log('POST');
+  const theirDssp = await getTheirDssp(req.files.file);
   res.send(theirDssp);
 });
 
@@ -17,52 +22,51 @@ app.use('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'front', 'build', 'index.html'));
 });
 
-app.listen(process.env.PORT || 80);
-console.log('STARTED at ' + (process.env.PORT || 80));
+app.listen(port, () => console.log('STARTED at ' + port));
 
-// const parsed = dssp.split('\n').slice(28).map((row, i) => {
-//   return i + ' ' + (row.substr(16,1) === 'H' ? 'H' : ' ');
-// });
-//
-// console.log(parsed.join('\n'));
-
-async function getTheirDssp(pdbId) {
-  const jobId = await createDsspJob(pdbId);
+async function getTheirDssp(file) {
+  const jobId = await createDsspJob(file);
 
   console.log('jobId: ' + jobId);
 
   let status = await getStatusOfJob(jobId);
 
-  while (status !== "SUCCESS") {
-    console.log('status ',status)
+  console.log(status);
+
+  while (status === "STARTED" || status === "PENDING") {
+    console.log('status ', status)
     status = getStatusOfJob(jobId);
   }
 
   return getResultOfJob(jobId);
 
-  async function createDsspJob(pdbId) {
-    const createDsspUrl = `https://www3.cmbi.umcn.nl/xssp/api/create/pdb_id/dssp/`;
-    const response = await axios({
-      method: "post",
-      url: createDsspUrl,
-      data: formUrlEncoded({data: pdbId}),
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-    return response.data.id;
+  async function createDsspJob(file) {
+    const createDsspUrl = `https://www3.cmbi.umcn.nl/xssp/api/create/pdb_file/dssp/`;
+    const formData = new FormData();
+    formData.append('file_', file.data, file.name);
+    try {
+      const response = await axios.post(createDsspUrl, formData, {
+        headers: {
+          ...formData.getHeaders(),
+        },
+      });
+      return response.data.id;
+    } catch(e) {
+      console.error(e);
+      return null;
+    }
   }
 
   async function getStatusOfJob(jobId) {
-    const statusUrl = `https://www3.cmbi.umcn.nl/xssp/api/status/pdb_id/dssp/${jobId}/`;
+    const statusUrl = `https://www3.cmbi.umcn.nl/xssp/api/status/pdb_file/dssp/${jobId}/`;
     const response = await axios.get(statusUrl);
     return response.data.status;
   }
 
   async function getResultOfJob(jobId) {
-    const resultUrl = `https://www3.cmbi.umcn.nl/xssp/api/result/pdb_id/dssp/${jobId}/`;
+    const resultUrl = `https://www3.cmbi.umcn.nl/xssp/api/result/pdb_file/dssp/${jobId}/`;
     const response = await axios.get(resultUrl);
     return response.data.result;
   }
 }
 
-const formUrlEncoded = x =>
-  Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, '')
