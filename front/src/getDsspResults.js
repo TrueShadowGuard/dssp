@@ -37,13 +37,22 @@ function parseTheirDssp(dssp) {
 
 function getDifference(theirDssp, ourDssp) {
   const ourDsspWithDifference = [...ourDssp];
+  let mismatches = 0;
+  let reduntant = 0;
+  let missing = 0;
   for (let i = 0; i < ourDsspWithDifference.length; i++) {
     const [, , ourStructure] = ourDssp[i];
     const [, , theirStructure] = theirDssp[i];
     if (ourStructure !== theirStructure) {
+      if (theirStructure === " ") reduntant++;
+      else missing++;
+      mismatches++;
       ourDsspWithDifference[i].push(theirStructure, 'x');
     }
   }
+  ourDsspWithDifference.unshift("Match all: " + (100 - (mismatches / ourDssp.length * 100)));
+  ourDsspWithDifference.unshift("Redundant: " + reduntant);
+  ourDsspWithDifference.unshift("Missing: " + missing);
   return ourDsspWithDifference;
 }
 

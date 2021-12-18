@@ -26,12 +26,14 @@ function getSpiralResidues(chain) {
 
     if (!residue_i || !residue_i_plus_4) continue;
 
-    const distance_to_i_plus_4 = get_O_N_distance(residue_i, residue_i_plus_4);
+    const O_N_distance = get_O_N_distance(residue_i, residue_i_plus_4);
 
-    if(distance_to_i_plus_4 === null) continue;
+    const C_N_distance = get_C_N_distance(residue_i, residue_i_plus_4);
 
-    if (distance_to_i_plus_4 < 3.5
-    ) {
+    if(O_N_distance === null) continue;
+    if(C_N_distance < O_N_distance) continue;
+
+    if (O_N_distance < 4.3) {
       const start = +residueId + 1;
       const frameResidues = [];
       const frame = new AlphaSpiralFrame(frameResidues);
@@ -60,6 +62,24 @@ function get_O_N_distance(firstAminoAtoms, secondAminoAtoms) {
       const name2 = secondAtom.atomName;
 
       if (name1 === "O" && name2 === "N") {
+        return distance(firstAtom, secondAtom);
+      }
+
+    }
+  }
+
+  return null;
+}
+
+function get_C_N_distance(firstAminoAtoms, secondAminoAtoms) {
+
+  for (let firstAtom of firstAminoAtoms) {
+    for (let secondAtom of secondAminoAtoms) {
+
+      const name1 = firstAtom.atomName;
+      const name2 = secondAtom.atomName;
+
+      if (name1 === "С" && name2 === "N") {
         return distance(firstAtom, secondAtom);
       }
 

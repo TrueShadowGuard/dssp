@@ -18,6 +18,7 @@ function App() {
     Object.values(checkBoxes).every(c => c === false) ||
     fileRef.current.files.length === 0
   );
+
   return (
     <div>
       <label>
@@ -25,7 +26,6 @@ function App() {
         <input type="file" ref={fileRef}/>
       </label> <br/>
       <fieldset>
-
         <label>
           <input type="checkbox"
                  value={checkBoxes.our}
