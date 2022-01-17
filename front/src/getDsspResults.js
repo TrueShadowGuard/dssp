@@ -7,9 +7,10 @@ export default async function getDsspResults(pdbFile, need) {
   const chains = parsePdb(pdbText);
 
   const ourDssp = dssp(chains.A);
-  const theirDssp = await getTheirDssp(pdbFile);
-  const theirDsspParsed = parseTheirDssp(theirDssp);
-  const ourDsspWithDifference = getDifference(theirDsspParsed, ourDssp);
+
+  const theirDssp = (need.their || need.diff) && await getTheirDssp(pdbFile);
+  const theirDsspParsed = (need.their || need.diff) && parseTheirDssp(theirDssp);
+  const ourDsspWithDifference = need.diff && getDifference(theirDsspParsed, ourDssp);
 
   need.our && downloadString(ourDssp.join("\n"), 'dssp', pdbFile.name + '_our');
   need.their && downloadString(theirDsspParsed.join("\n"), 'dssp', pdbFile.name + '_their');
@@ -43,11 +44,11 @@ function getDifference(theirDssp, ourDssp) {
   for (let i = 0; i < ourDsspWithDifference.length; i++) {
     const [, , ourStructure] = ourDssp[i];
     const [, , theirStructure] = theirDssp[i];
+    ourDsspWithDifference[i].push(theirStructure);
     if (ourStructure !== theirStructure) {
       if (theirStructure === " ") reduntant++;
       else missing++;
       mismatches++;
-      ourDsspWithDifference[i].push(theirStructure, 'x');
     }
   }
   ourDsspWithDifference.unshift("Match all: " + (100 - (mismatches / ourDssp.length * 100)));

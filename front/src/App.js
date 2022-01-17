@@ -12,6 +12,8 @@ function App() {
 
   const fileRef = useRef();
 
+  const [file, setFile] = useState(null);
+
   const [checkBoxes, setCheckBoxes] = useState({our: false, their: false, diff: false});
 
   const isGetResultDisabled = (
@@ -23,7 +25,7 @@ function App() {
     <div>
       <label>
         Pdb file:
-        <input type="file" ref={fileRef}/>
+        <input type="file" ref={fileRef} onChange={e => setFile(e.target.files[0])}/>
       </label> <br/>
       <fieldset>
         <label>

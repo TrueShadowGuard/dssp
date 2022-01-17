@@ -1,6 +1,7 @@
 import range from "../range";
 import distance from "../distance";
 import getAbbreviationForAA from "../getAbbreviationForAA";
+import coordinatesForHBonds from "./coordinatesForHBonds";
 
 export default function dssp(chain) {
   let spiralResidues = getSpiralResidues(chain);
@@ -24,16 +25,27 @@ function getSpiralResidues(chain) {
 
     const residue_i_plus_4 = chain[+residueId + 4];
 
+    const residue_i_plus_3 = chain[+residueId + 3];
+
     if (!residue_i || !residue_i_plus_4) continue;
 
     const O_N_distance = get_O_N_distance(residue_i, residue_i_plus_4);
 
-    const C_N_distance = get_C_N_distance(residue_i, residue_i_plus_4);
+    const H_atom = getH_Atom(residue_i_plus_3, residue_i, residue_i_plus_4);
+    const C_atom = residue_i.find(atom => atom.atomName === "C");
+    const N_atom = residue_i_plus_4.find(atom => atom.atomName === "N");
+    const O_atom = residue_i.find(atom => atom.atomName === "O");
 
-    if(O_N_distance === null) continue;
-    if(C_N_distance < O_N_distance) continue;
+    const ON = distance(O_atom, N_atom);
+    const CH = distance(C_atom, H_atom);
+    const CN = distance(C_atom, N_atom);
+    const OH = distance(O_atom, H_atom);
 
-    if (O_N_distance < 4.3) {
+    const bonded = areBonded(ON, OH, CH, CN);
+
+    debugger;
+
+    if (bonded) {
       const start = +residueId + 1;
       const frameResidues = [];
       const frame = new AlphaSpiralFrame(frameResidues);
@@ -55,38 +67,13 @@ function getSpiralResidues(chain) {
 
 function get_O_N_distance(firstAminoAtoms, secondAminoAtoms) {
 
-  for (let firstAtom of firstAminoAtoms) {
-    for (let secondAtom of secondAminoAtoms) {
+  const O_atom = firstAminoAtoms.find(atom => atom.atomName === "O");
+  const N_atom = secondAminoAtoms.find(atom => atom.atomName === "N");
 
-      const name1 = firstAtom.atomName;
-      const name2 = secondAtom.atomName;
+  const bothFound = O_atom && N_atom;
 
-      if (name1 === "O" && name2 === "N") {
-        return distance(firstAtom, secondAtom);
-      }
+  return bothFound ? distance(O_atom, N_atom) : null;
 
-    }
-  }
-
-  return null;
-}
-
-function get_C_N_distance(firstAminoAtoms, secondAminoAtoms) {
-
-  for (let firstAtom of firstAminoAtoms) {
-    for (let secondAtom of secondAminoAtoms) {
-
-      const name1 = firstAtom.atomName;
-      const name2 = secondAtom.atomName;
-
-      if (name1 === "С" && name2 === "N") {
-        return distance(firstAtom, secondAtom);
-      }
-
-    }
-  }
-
-  return null;
 }
 
 class AlphaSpiralFrame {
@@ -111,3 +98,61 @@ class ResidueOfAlphaSpiral {
   }
 }
 
+function getH_Atom(residue_i_plus_3, residue_i, residue_i_plus_4) {
+  const C_atom = residue_i_plus_3.find(a => a.atomName === "C");
+  const CA_atom = residue_i_plus_4.find(a => a.atomName === "CA");
+  const N_atom = residue_i_plus_4.find(a => a.atomName === "N");
+  const point = middle(C_atom, CA_atom);
+  return extend(point, N_atom, 1);
+}
+
+function getN_H_O_angle(residue_i_plus_3, residue_i, residue_i_plus_4) {
+  const id = residue_i[0].aminoAcidId;
+  const C_atom = residue_i_plus_3.find(a => a.atomName === "C");
+  const CA_atom = residue_i_plus_4.find(a => a.atomName === "CA");
+  const N_atom = residue_i_plus_4.find(a => a.atomName === "N");
+  const O_atom = residue_i.find(a => a.atomName === "O");
+
+  const point = middle(C_atom, CA_atom);
+  const H_atom = extend(point, N_atom, 1);
+  return getAngle(O_atom, N_atom, H_atom);
+}
+
+function middle(p1, p2) {
+  return {
+    x: ((p2.x + p1.x) / 2),
+    y: ((p2.y + p1.y) / 2),
+    z: ((p2.z + p1.z) / 2)
+  }
+}
+
+function extend(p1, p2, value) {
+  const result = {};
+  const dist = distance(p1, p2);
+  const percent = value / dist;
+  result.x = p2.x + percent * (p2.x - p1.x);
+  result.y = p2.y + percent * (p2.y - p1.y);
+  result.z = p2.z + percent * (p2.z - p1.z);
+  return result;
+}
+
+function getAngle(a, b, c) {
+  const ab = distance(a, b);
+  const bc = distance(b, c);
+  const ac = distance(c, a);
+
+  const cos_b = (Math.pow(ab, 2) + Math.pow(bc, 2) - Math.pow(ac, 2)) / (2 * ab * bc);
+
+  const rad_b = Math.acos(cos_b);
+
+  return rad_b * 180 / Math.PI;
+}
+
+function areBonded(ON, OH, CH, CN) {
+  const e = 1.60217662E-19;
+  const q1 = 0.42 * e;
+  const q2 = 0.2 * e;
+  const E = q1 * q2 *(1/ON + 1/CH - 1/OH - 1/CN) * 332;
+  console.log(E);
+  return E < -0.5;
+}
